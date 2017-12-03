@@ -12,7 +12,10 @@ Introduction
     :target: https://discord.gg/nBQh6qu
     :alt: Discord
 
-TODO
+The APDS9960 is a specialize chip that detects hand gestures, proximity detection
+and ambient light color over I2C. Its available on
+`Adafruit as a breakout <https://www.adafruit.com/product/3595>`_.
+
 
 Dependencies
 =============
