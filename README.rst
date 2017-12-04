@@ -4,7 +4,7 @@ Introduction
 
 .. image:: https://readthedocs.org/projects/adafruit-circuitpython-APDS9960/badge/?version=latest
 
-    :target: https://circuitpython.readthedocs.io/projects/apds9960/en/latest/
+    :target: https://circuitpython.readthedocs.io/projects/apds/en/latest/
 
     :alt: Documentation Status
 
@@ -44,29 +44,73 @@ Of course, you must import i2c bus device, board pins, and the library:
 
 
   from board import SCL, SDA
-  import adafruit_apds9960
+  import adafruit_apds9960 as apds
   from adafruit_bus_device import I2CDevice
 
-Now initialize the I2CDevice using SCL and SDA pins.  Then initialize the libary.
+To set-up the device to gather data, initialize the I2CDevice using SCL
+and SDA pins.   Then initialize the libary.  Optionally provide an interrupt
+pin for proximity detection.
 
 .. code:: python
 
-  i2c = I2CDevice(SCL, SDA)
-  apds9960 = adafruit_apds9960(i2c)
+  interrupt_pin = digitalio.DigitalInOutput(board.D2)
+  i2c = I2CDevice(SCL, SDA, interrupt_pin=interrupt_pin)
+  apds.APDS9960(i2c)
+
+Gestures
+--------
 
 To get a gesture, see if a gesture is available first, then get the gesture Code
 
 .. code:: python
 
-  gesture = apds9960.get_gesture()
-  if gesture == apds9960.UP:
+  gesture = apds.gesture()
+  if gesture == apds.UP:
     print("up")
-  if gesture == apds9960.DOWN
+  if gesture == apds.DOWN:
     print("down")
-  if gesture == apds9960.RIGHT
+  if gesture == apds.RIGHT:
     print("right")
-  if gesture == apds9960.LEFT
+  if gesture == apds.LEFT:
     print("left")
+
+Color Measurement
+-----------------
+
+To get a color measure, enable color measures, wait for color data,
+then get the color data.
+
+.. code:: python
+
+  apds.enable_color = True
+
+  while not apds.color_data_ready:
+      time.sleep(0.005)
+
+  r, g, b, c = apds.color_data
+  print("r: {}, g: {}, b: {}, c: {}".format(r, g, b, c))
+
+Proximity Detection
+---------------------
+
+To check for a object in proximity, see if a gesture is available first, then get the gesture Code
+
+.. code:: python
+
+  apds.enable_proximity = True
+
+  # set the interrupt threshold to fire when proximity reading goes above 175
+  apds.proximity_interrupt_threshold = (0, 175)
+
+  # enable the proximity interrupt
+  apds.enable_proximity_interrupt = True
+
+  while not interrupt_pin.value:
+    print(apds.proximity)
+
+    # clear the interrupt
+    apds.clear_interrupt()
+
 
 API Reference
 =============
@@ -105,4 +149,4 @@ Then run the build:
 
 .. code-block::shell
 
-    circuitpython-build-bundles --filename_prefix adafruit-circuitpython-apds9960 --library_location .
+    circuitpython-build-bundles --filename_prefix adafruit-circuitpython-apds --library_location .
