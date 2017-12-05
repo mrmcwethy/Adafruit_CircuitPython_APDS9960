@@ -43,9 +43,9 @@ Of course, you must import i2c bus device, board pins, and the library:
 .. code:: python
 
 
-  from board import SCL, SDA
+  from board import SCL, SDA, A1
   import adafruit_apds9960 as apds9960
-  from adafruit_bus_device import I2CDevice
+  import busio
 
 To set-up the device to gather data, initialize the I2CDevice using SCL
 and SDA pins.   Then initialize the libary.  Optionally provide an interrupt
@@ -53,9 +53,9 @@ pin for proximity detection.
 
 .. code:: python
 
-  interrupt_pin = digitalio.DigitalInOutput(board.D2)
-  i2c = I2CDevice(SCL, SDA, interrupt_pin=interrupt_pin)
-  apds = apds9960.APDS9960(i2c)
+  int_pin = digitalio.DigitalInOutput(A1)
+  i2c = busio.I2C(SCL, SDA)
+  apds = apds9960.APDS9960(i2c, interrupt_pin=int_pin)
 
 Gestures
 --------
@@ -106,7 +106,7 @@ To check for a object in proximity, see if a gesture is available first, then ge
   apds.enable_proximity_interrupt = True
 
   while not interrupt_pin.value:
-    print(apds.proximity)
+    print(apds.proximity())
 
     # clear the interrupt
     apds.clear_interrupt()
