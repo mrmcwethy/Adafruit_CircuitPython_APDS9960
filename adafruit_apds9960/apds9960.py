@@ -190,7 +190,6 @@ class APDS9960:
         buffer = bytearray(129)
         buffer[0] = APDS9960_GFIFO_U
         if not self._gesture_valid:
-            # print("no valid data")
             return 0
 
         time_mark = 0
@@ -324,7 +323,8 @@ class APDS9960:
         """Returns a tuple containing low and high threshold
         followed by the proximity interrupt persistance.
         Set the proximity interrupt threshold values using a tuple of zero to
-        three values: low threshold, high threshold, persistance """
+        three values: low threshold, high threshold, persistance.
+        persistance defaults to 4 if not provided"""
         return self.read8(APDS9960_PILT), \
                self.read8(APDS9960_PIHT), \
                self._proximity_persistance
@@ -335,8 +335,10 @@ class APDS9960:
             self.write8(APDS9960_PILT, setting_tuple[0])
         if len(setting_tuple) > 1:
             self.write8(APDS9960_PIHT, setting_tuple[1])
+        persist = 4 # default 4
         if len(setting_tuple) > 2:
-            self._proximity_persistance = setting_tuple[2]
+            persist = min(setting_tuple[2], 7)
+        self._proximity_persistance = persist
 
 
     @property
@@ -381,7 +383,6 @@ class APDS9960:
         buf = bytearray(2)
         buf[0] = command
         buf[1] = abyte
-        print(buf)
         with self.i2c_device as i2c:
             i2c.write(buf)
 

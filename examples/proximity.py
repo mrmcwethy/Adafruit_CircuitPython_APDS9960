@@ -14,9 +14,7 @@ apds.enable_proximity_interrupt = True
 while True:
     # print the proximity reading when the interrupt pin goes low
     if not int_pin.value:
-        prox_value = apds.proximity()
-        if prox_value:
-            print(prox_value)
+        print(apds.proximity())
 
         # clear the interrupt
         apds.clear_interrupt()

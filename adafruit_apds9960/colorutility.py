@@ -44,7 +44,7 @@ def calculate_color_temperature(r, g, b):
     xchrome = x / (x + y + z)
     ychrome = y / (x + y + z)
 
-    #  3. Use McCamy's formula to determine the CCT
+    #  3. Use   to determine the CCT
     n = (xchrome - 0.3320) / (0.1858 - ychrome)
 
     #  4. Calculate the final CCT
