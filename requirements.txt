@@ -1,2 +1,2 @@
-circuitpython-travis-build-tools
-
+adafruit-circuitpython-bus-device
+adafruit-circuitpython-register

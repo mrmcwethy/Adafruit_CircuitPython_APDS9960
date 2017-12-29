@@ -44,18 +44,19 @@ Of course, you must import i2c bus device, board pins, and the library:
 
 
   from board import SCL, SDA, A1
-  import adafruit_apds9960 as apds9960
+  from adafruit_apds9960.apds9960 import APDS9960
   import busio
+  import digitalio
 
 To set-up the device to gather data, initialize the I2CDevice using SCL
-and SDA pins.   Then initialize the libary.  Optionally provide an interrupt
+and SDA pins.   Then initialize the library.  Optionally provide an interrupt
 pin for proximity detection.
 
 .. code:: python
 
-  int_pin = digitalio.DigitalInOutput(A1)
+  int_pin = digitalio.DigitalInOut(A1)
   i2c = busio.I2C(SCL, SDA)
-  apds = apds9960.APDS9960(i2c, interrupt_pin=int_pin)
+  apds = APDS9960(i2c, interrupt_pin=int_pin)
 
 Gestures
 --------
@@ -65,14 +66,14 @@ To get a gesture, see if a gesture is available first, then get the gesture Code
 .. code:: python
 
   gesture = apds.gesture()
-  if gesture == apds.UP:
+  if gesture == 1:
     print("up")
-  if gesture == apds.DOWN:
+  if gesture == 2:
     print("down")
-  if gesture == apds.RIGHT:
-    print("right")
-  if gesture == apds.LEFT:
+  if gesture == 3:
     print("left")
+  if gesture == 4:
+    print("right")
 
 Color Measurement
 -----------------
@@ -105,11 +106,12 @@ To check for a object in proximity, see if a gesture is available first, then ge
   # enable the proximity interrupt
   apds.enable_proximity_interrupt = True
 
-  while not interrupt_pin.value:
-    print(apds.proximity())
+  while True:
+    if not interrupt_pin.value:
+      print(apds.proximity())
 
-    # clear the interrupt
-    apds.clear_interrupt()
+      # clear the interrupt
+      apds.clear_interrupt()
 
 
 API Reference

@@ -20,10 +20,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 """
-`adafruit_APDS9960`
+`APDS9960`
 ====================================================
 
-TODO(description)
+Driver class for the APDS9960 board.  Supports gesture, proximity, and color
+detection.
 
 * Author(s): Michael McWethy
 """
@@ -93,7 +94,7 @@ APDS9960_GFIFO_U    = const(0xFC)
 #pylint: enable-msg=bad-whitespace
 
 
-
+#pylint: disable-msg=too-many-instance-attributes
 class APDS9960:
     """
     APDS9900 provide basic driver services for the ASDS9960 breakout board
@@ -145,7 +146,7 @@ class APDS9960:
         self.gesture_fifo_threshold = 0x01 # fifo 4
         self.gesture_gain = 0x02 # gain 4
         self.gesture_proximity_threshold = 50
-        self.reset_counts()
+        self._reset_counts()
 
         # gesture pulse length=0x2 pulse count=0x3
         self.write8(APDS9960_GPULSE, (0x2 << 6) | 0x3)
@@ -154,21 +155,25 @@ class APDS9960:
     ## BOARD
     @property
     def enable(self):
+        """Set or get board enable.  True to enable, False to disable"""
         return self._enable
 
     @enable.setter
     def enable(self, enable_flag):
         self._enable = enable_flag
 
-    def reset_counts(self):
-        self._up_count = 0
-        self._down_count = 0
-        self._right_count = 0
-        self._left_count = 0
+    def _reset_counts(self):
+        """Gesture detection internal counts"""
+        self._saw_down_start = 0
+        self._saw_up_start = 0
+        self._saw_left_start = 0
+        self._saw_right_start = 0
 
     ## GESTURE DETECTION
     @property
     def enable_gesture(self):
+        """Set ot get gesture detection enable flag
+            Note that when disabled, the gesture mode is turned off"""
         return self._gesture_mode, self._gesture_enable
 
     @enable_gesture.setter
@@ -177,10 +182,11 @@ class APDS9960:
             self._gesture_mode = False
         self._gesture_enable = enable_flag
 
-    def gesture(self):
+    def gesture(self): #pylint: disable-msg=too-many-branches
         """Return a gesture code if detected. =0 if no gesture
         =1 if an UP, =2 if a DOWN, =3 if an LEFT, =4 if a RIGHT
         """
+        # buffer to read of contents of device FIFO buffer
         buffer = bytearray(129)
         buffer[0] = APDS9960_GFIFO_U
         if not self._gesture_valid:
@@ -202,47 +208,51 @@ class APDS9960:
                 i2c.readinto(buffer, start=1)
             upp, down, left, right = buffer[1:5]
 
-            # upp, down, left, right = self._gesture_fifo_read
-            # if upp or down or left or right:
-            #     print(upp, down, left, right)
-
             if abs(upp - down) > 13:
                 up_down_diff = upp - down
-                # print("up down diff {}".format(up_down_diff))
 
             if abs(left - right) > 13:
                 left_right_diff = left - right
-                # print("left right diff {}".format(left_right_diff))
 
             if up_down_diff != 0:
                 if up_down_diff < 0:
-                    if self._down_count > 0:
-                        gesture_received = 0x01
+                    # either leading edge of down movement
+                    # or trailing edge of up movement
+                    if self._saw_up_start:
+                        gesture_received = 0x01 # up
                     else:
-                        self._up_count += 1
+                        self._saw_down_start += 1
                 elif up_down_diff > 0:
-                    if self._up_count > 0:
-                        gesture_received = 0x02
+                    # either leading edge of up movement
+                    # or trailing edge of down movement
+                    if self._saw_down_start:
+                        gesture_received = 0x02 # down
                     else:
-                        self._down_count += 1
+                        self._saw_up_start += 1
 
             if left_right_diff != 0:
                 if left_right_diff < 0:
-                    if self._right_count > 0:
-                        gesture_received = 0x03
+                    # either leading edge of right movement
+                    # trailing edge of left movement
+                    if self._saw_left_start:
+                        gesture_received = 0x03 # left
                     else:
-                        self._left_count += 1
+                        self._saw_right_start += 1
                 elif left_right_diff > 0:
-                    if self._left_count > 0:
-                        gesture_received = 0x04
+                    # either leading edge of left movement
+                    # trailing edge of right movement
+                    if self._saw_right_start:
+                        gesture_received = 0x04 #right
                     else:
-                        self._right_count += 1
+                        self._saw_left_start += 1
 
+            # saw a leading or trailing edge; start timer
             if up_down_diff != 0 or left_right_diff != 0:
                 time_mark = time.monotonic()
 
+            # finished when a gesture is detected or ran out of time (300ms)
             if gesture_received or time.monotonic() - time_mark > 0.300:
-                self.reset_counts()
+                self._reset_counts()
                 break
 
         return gesture_received
@@ -250,22 +260,25 @@ class APDS9960:
 
     @property
     def gesture_dimensions(self):
+        """Set of get gesture dimension value: range 0-3"""
         return self.read8(APDS9960_GCONF3)
 
     @gesture_dimensions.setter
     def gesture_dimensions(self, dims):
-        self.write8(APDS9960_GCONF3, dims & 0xff)
+        self.write8(APDS9960_GCONF3, dims & 0x03)
 
     @property
     def gesture_fifo_threshold(self):
+        """Set or get gesture fifo threshold value: range 0-3"""
         return self._gesture_fifo_threshold
 
     @gesture_fifo_threshold.setter
     def gesture_fifo_threshold(self, thresh):
-        self._gesture_fifo_threshold = thresh & 0x3
+        self._gesture_fifo_threshold = thresh & 0x03
 
     @property
     def gesture_gain(self):
+        """Set or get gesture gain value: range 0-3"""
         return self._gesture_gain
 
     @gesture_gain.setter
@@ -276,7 +289,8 @@ class APDS9960:
     ## COLOR DETECTION
     @property
     def enable_color(self):
-        """returns True when color is enabled, else False"""
+        """Set of get color detection enable flag.
+            True when color detection is enabled, else False"""
         return self._color_enable
 
     @enable_color.setter
@@ -285,15 +299,16 @@ class APDS9960:
 
     @property
     def color_data_ready(self):
+        """Get color data ready flag.  zero if not ready, 1 is ready"""
         return self.read8(APDS9960_STATUS) & 0x01
 
     @property
     def color_data(self):
         """Returns tuple containing r, g, b, c values"""
-        return self.read16(APDS9960_CDATAL + 2), \
-               self.read16(APDS9960_CDATAL + 4), \
-               self.read16(APDS9960_CDATAL + 6), \
-               self.read16(APDS9960_CDATAL)
+        return self._color_data16(APDS9960_CDATAL + 2), \
+               self._color_data16(APDS9960_CDATAL + 4), \
+               self._color_data16(APDS9960_CDATAL + 6), \
+               self._color_data16(APDS9960_CDATAL)
     ### PROXIMITY
     @property
     def enable_proximity(self):
@@ -307,7 +322,7 @@ class APDS9960:
     @property
     def proximity_interrupt_threshold(self):
         """Returns a tuple containing low and high threshold
-        followed by the proximity interrupt persistance. 
+        followed by the proximity interrupt persistance.
         Set the proximity interrupt threshold values using a tuple of zero to
         three values: low threshold, high threshold, persistance """
         return self.read8(APDS9960_PILT), \
@@ -326,6 +341,8 @@ class APDS9960:
 
     @property
     def enable_proximity_interrupt(self):
+        """Set or get proximity interrupt enable flag.  True if enabled,
+            False to disable"""
         return self._proximity_enable_interrupt
 
     @enable_proximity_interrupt.setter
@@ -334,6 +351,7 @@ class APDS9960:
 
     @property
     def gesture_proximity_threshold(self):
+        """Set or get proximity threshold value: range 0-255"""
         return self.read8(APDS9960_GPENTH)
 
     @gesture_proximity_threshold.setter
@@ -341,13 +359,16 @@ class APDS9960:
         self.write8(APDS9960_GPENTH, thresh & 0xff)
 
     def proximity(self):
+        """Set or get proximity value: range 0-255"""
         return self.read8(APDS9960_PDATA)
 
     def clear_interrupt(self):
+        """Clear all interrupts"""
         self.writecmdonly(APDS9960_AICLEAR)
 
     @property
     def integration_time(self):
+        """Set or get the proximity integration time: range 0-255"""
         return self.read8(APDS9960_ATIME)
 
     @integration_time.setter
@@ -356,6 +377,7 @@ class APDS9960:
 
     # method for reading and writing to I2C
     def write8(self, command, abyte):
+        """Write a command and 1 byte of data to the I2C device"""
         buf = bytearray(2)
         buf[0] = command
         buf[1] = abyte
@@ -364,12 +386,14 @@ class APDS9960:
             i2c.write(buf)
 
     def writecmdonly(self, command):
+        """Writes a command and 0 bytes of data to the I2C device"""
         buf = bytearray(1)
         buf[0] = command
         with self.i2c_device as i2c:
             i2c.write(buf)
 
     def read8(self, command):
+        """Sends a command and reads 1 byte of data from the I2C device"""
         buf = bytearray(1)
         buf[0] = command
         with self.i2c_device as i2c:
@@ -377,7 +401,9 @@ class APDS9960:
             i2c.readinto(buf)
         return buf[0]
 
-    def read16(self, command):
+    def _color_data16(self, command):
+        """Sends a command and reads 2 byte of data from the I2C device
+            The returned data is low byte first followed by high byte"""
         buf = bytearray(2)
         buf[0] = command
         with self.i2c_device as i2c:
