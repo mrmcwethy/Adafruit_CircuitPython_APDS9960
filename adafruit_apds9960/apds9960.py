@@ -112,6 +112,9 @@ class APDS9960:
                  integration_time=0x01,
                  gain=0x01):
 
+        self.buf129 = None
+        self.buf2 = bytearray(2)
+
         self.i2c_device = I2CDevice(i2c, address)
         self._interrupt_pin = interrupt_pin
         if interrupt_pin:
@@ -141,7 +144,6 @@ class APDS9960:
 
         # gesture pulse length=0x2 pulse count=0x3
         self._write8(APDS9960_GPULSE, (0x2 << 6) | 0x3)
-
 
     ## BOARD
     def _reset_counts(self):
@@ -187,7 +189,10 @@ class APDS9960:
         =1 if an UP, =2 if a DOWN, =3 if an LEFT, =4 if a RIGHT
         """
         # buffer to read of contents of device FIFO buffer
-        buffer = bytearray(129)
+        if self.buf129:
+            self.buf129 = bytearray(129)
+
+        buffer = self.buf129
         buffer[0] = APDS9960_GFIFO_U
         if not self._gesture_valid:
             return 0
@@ -331,7 +336,7 @@ class APDS9960:
     # method for reading and writing to I2C
     def _write8(self, command, abyte):
         """Write a command and 1 byte of data to the I2C device"""
-        buf = bytearray(2)
+        buf = self.buf2
         buf[0] = command
         buf[1] = abyte
         with self.i2c_device as i2c:
@@ -339,24 +344,24 @@ class APDS9960:
 
     def _writecmdonly(self, command):
         """Writes a command and 0 bytes of data to the I2C device"""
-        buf = bytearray(1)
+        buf = self.buf2
         buf[0] = command
         with self.i2c_device as i2c:
-            i2c.write(buf)
+            i2c.write(buf, end=1)
 
     def _read8(self, command):
         """Sends a command and reads 1 byte of data from the I2C device"""
-        buf = bytearray(1)
+        buf = self.buf2
         buf[0] = command
         with self.i2c_device as i2c:
-            i2c.write(buf)
-            i2c.readinto(buf)
+            i2c.write(buf, end=1)
+            i2c.readinto(buf, end=1)
         return buf[0]
 
     def _color_data16(self, command):
         """Sends a command and reads 2 bytes of data from the I2C device
             The returned data is low byte first followed by high byte"""
-        buf = bytearray(2)
+        buf = self.buf2
         buf[0] = command
         with self.i2c_device as i2c:
             i2c.write(buf, end=1, stop=False)
