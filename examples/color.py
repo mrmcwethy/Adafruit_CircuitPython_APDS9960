@@ -26,6 +26,6 @@ while True:
     print("blue: ", b)
     print("clear: ", c)
 
-    print("color temp {}".format(colorutility.calculate_color_temperature(r, b, g)))
-    print("light lux {}".format(colorutility.calculate_lux(r, b, g)))
+    print("color temp {}".format(colorutility.calculate_color_temperature(r, g, b)))
+    print("light lux {}".format(colorutility.calculate_lux(r, g, b)))
     time.sleep(0.5)
