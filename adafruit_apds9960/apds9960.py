@@ -81,7 +81,7 @@ APDS9960_GCONF2     = const(0xA3)
 APDS9960_GPULSE     = const(0xA6)
 APDS9960_GCONF3     = const(0xAA)
 APDS9960_GCONF4     = const(0xAB)
-# APDS9960_GFLVL      = const(0xAE)
+APDS9960_GFLVL      = const(0xAE)
 APDS9960_GSTATUS    = const(0xAF)
 # APDS9960_IFORCE     = const(0xE4)
 # APDS9960_PICLEAR    = const(0xE5)
@@ -189,7 +189,7 @@ class APDS9960:
         =1 if an UP, =2 if a DOWN, =3 if an LEFT, =4 if a RIGHT
         """
         # buffer to read of contents of device FIFO buffer
-        if self.buf129:
+        if not self.buf129:
             self.buf129 = bytearray(129)
 
         buffer = self.buf129
@@ -207,9 +207,13 @@ class APDS9960:
 
             time.sleep(0.030) # 30 ms
 
+            n_recs = self._read8(APDS9960_GFLVL)
+            if not n_recs:
+                continue
+
             with self.i2c_device as i2c:
                 i2c.write(buffer, end=1, stop=False)
-                i2c.readinto(buffer, start=1)
+                i2c.readinto(buffer, start=1, end=min(129, 1 + n_recs * 4))
             upp, down, left, right = buffer[1:5]
 
             if abs(upp - down) > 13:
