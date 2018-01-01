@@ -204,59 +204,57 @@ class APDS9960:
             up_down_diff = 0
             left_right_diff = 0
             gesture_received = 0
-
             time.sleep(0.030) # 30 ms
 
             n_recs = self._read8(APDS9960_GFLVL)
-            if not n_recs:
-                continue
+            if n_recs:
 
-            with self.i2c_device as i2c:
-                i2c.write(buffer, end=1, stop=False)
-                i2c.readinto(buffer, start=1, end=min(129, 1 + n_recs * 4))
-            upp, down, left, right = buffer[1:5]
+                with self.i2c_device as i2c:
+                    i2c.write(buffer, end=1, stop=False)
+                    i2c.readinto(buffer, start=1, end=min(129, 1 + n_recs * 4))
+                upp, down, left, right = buffer[1:5]
 
-            if abs(upp - down) > 13:
-                up_down_diff = upp - down
+                if abs(upp - down) > 13:
+                    up_down_diff = upp - down
 
-            if abs(left - right) > 13:
-                left_right_diff = left - right
+                if abs(left - right) > 13:
+                    left_right_diff = left - right
 
-            if up_down_diff != 0:
-                if up_down_diff < 0:
-                    # either leading edge of down movement
-                    # or trailing edge of up movement
-                    if self._saw_up_start:
-                        gesture_received = 0x01 # up
-                    else:
-                        self._saw_down_start += 1
-                elif up_down_diff > 0:
-                    # either leading edge of up movement
-                    # or trailing edge of down movement
-                    if self._saw_down_start:
-                        gesture_received = 0x02 # down
-                    else:
-                        self._saw_up_start += 1
+                if up_down_diff != 0:
+                    if up_down_diff < 0:
+                        # either leading edge of down movement
+                        # or trailing edge of up movement
+                        if self._saw_up_start:
+                            gesture_received = 0x01 # up
+                        else:
+                            self._saw_down_start += 1
+                    elif up_down_diff > 0:
+                        # either leading edge of up movement
+                        # or trailing edge of down movement
+                        if self._saw_down_start:
+                            gesture_received = 0x02 # down
+                        else:
+                            self._saw_up_start += 1
 
-            if left_right_diff != 0:
-                if left_right_diff < 0:
-                    # either leading edge of right movement
-                    # trailing edge of left movement
-                    if self._saw_left_start:
-                        gesture_received = 0x03 # left
-                    else:
-                        self._saw_right_start += 1
-                elif left_right_diff > 0:
-                    # either leading edge of left movement
-                    # trailing edge of right movement
-                    if self._saw_right_start:
-                        gesture_received = 0x04 #right
-                    else:
-                        self._saw_left_start += 1
+                if left_right_diff != 0:
+                    if left_right_diff < 0:
+                        # either leading edge of right movement
+                        # trailing edge of left movement
+                        if self._saw_left_start:
+                            gesture_received = 0x03 # left
+                        else:
+                            self._saw_right_start += 1
+                    elif left_right_diff > 0:
+                        # either leading edge of left movement
+                        # trailing edge of right movement
+                        if self._saw_right_start:
+                            gesture_received = 0x04 #right
+                        else:
+                            self._saw_left_start += 1
 
-            # saw a leading or trailing edge; start timer
-            if up_down_diff != 0 or left_right_diff != 0:
-                time_mark = time.monotonic()
+                # saw a leading or trailing edge; start timer
+                if up_down_diff or left_right_diff:
+                    time_mark = time.monotonic()
 
             # finished when a gesture is detected or ran out of time (300ms)
             if gesture_received or time.monotonic() - time_mark > 0.300:
